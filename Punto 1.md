@@ -55,15 +55,6 @@ Dividimos los datos en *trozos* que se procesan en paralelo por **Workers** que 
 
 ---
 
-## Modelado basico en π-calculus
-- `Loader = !readChunk(c) . send(chan_task, c)`  — lee y envía chunks.
-- `Worker_i = recv(chan_param, (w,b)) . recv(chan_task, chunk) . computeGrad(chunk,w,b, g) . send(chan_grad, g) . Worker_i` (replicado por iteración)
-- `Aggregator = recv(chan_grad, g1) . recv(chan_grad, g2) . ... . update(w,b) . send(chan_param, (w,b)) . Aggregator`
-- Sistema completo: `Loader | Worker_1 | ... | Worker_N | Aggregator | Coordinator`
-
----
-
-
 ## Estrategias de sincronización 
 1. **Sincronización por iteración (síncrona)**
    - Esperar a N gradientes antes de actualizar.
