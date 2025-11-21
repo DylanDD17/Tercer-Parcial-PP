@@ -4,8 +4,7 @@
 
 ---
 
-# Diseño: Regresión Lineal concurrente usando concurrencia + cálculo π (π-calculus)
- Regresión Lineal concurrente usando concurrencia + cálculo π (π-calculus)
+# Diseño: Regresión Lineal concurrente usando concurrencia + cálculo π 
 
 ---
 
