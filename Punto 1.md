@@ -1,53 +1,20 @@
-# Diagrama general del diseño (UML simplificado)
+# Diagrama general del diseño 
 
-```
-          +------------------+                     
-          |   Coordinator    |                     
-          +------------------+                     
-             |        |                          
-     start/params   stop                         
-             |        |                          
-             v        v                          
-+------------------+     +------------------+     
-|    DataLoader    |     |   Aggregator     |<-------------------+
-+------------------+     +------------------+                    |
-        |                         ^                              |
-   chunks/task                   | gradients                     |
-        |                         |                              |
-        v                         |                              |
-   +-------------------------------------------+                 |
-   |                 Workers                   |                 |
-   |-------------------------------------------|                 |
-   |  Worker 1 | Worker 2 | ... | Worker N     |-----------------+
-   +-------------------------------------------+
-            ^          ^             ^
-            | params   | params      | params
-            +----------+-------------+
-```
+<img width="1615" height="918" alt="Mermaid Chart - Create complex, visual diagrams with text -2025-11-21-125034" src="https://github.com/user-attachments/assets/5cb361ff-9762-4679-8fea-c3a2e9dbb64e" />
 
 ---
 
 # Diseño: Regresión Lineal concurrente usando concurrencia + cálculo π (π-calculus)
  Regresión Lineal concurrente usando concurrencia + cálculo π (π-calculus)
 
-**Propósito**: diseñar una solución para entrenar una regresión lineal (descenso de gradiente) usando ideas del paradigma de **concurrencia** y conceptos esenciales del **cálculo π (pi-calculus)**. El diseño es conceptual — no es código— y está pensado para que puedas implementarlo luego con hilos, procesos o un modelo de actores.
-
 ---
 
-## Resumen ejecutivo (una línea)
+## Resumen 
 Dividimos los datos en *trozos* que se procesan en paralelo por **Workers** que calculan gradientes parciales; un **Agregador** (o *Parameter Server*) recibe esos gradientes por canales, los combina y actualiza los parámetros `w` y `b`; luego notifica a los Workers para la siguiente iteración. Todo esto está modelado como procesos que se comunican por nombres/canales (concepto clave del π-calculus).
 
 ---
 
-## Objetivos del diseño
-- Mantener la corrección del descenso de gradiente.
-- Aprovechar la concurrencia para acelerar el cómputo de gradientes.
-- Usar conceptos clave de π-calculus: **procesos**, **canales (nombres)**, **envío/recepción** y **composición**.
-- Evitar conceptos demasiado teóricos: usar una explicación intuitiva y mapeos a primitivas prácticas (threads, colas, canales).
-
----
-
-## Componentes principales (visión de alto nivel)
+## Componentes principales 
 1. **Data Loader**: lee el dataset y lo fragmenta en *mini-batches* o trozos.
 2. **Workers** (N réplicas): reciben un trozo de datos y la versión actual de los parámetros; calculan `dw` y `db` parciales y los envían al Agregador.
 3. **Agregador / Parameter Server**: recibe gradientes parciales de todos los Workers, los combina (suma/promedio) y actualiza `w` y `b` usando la tasa de aprendizaje; publica los nuevos parámetros.
@@ -56,15 +23,14 @@ Dividimos los datos en *trozos* que se procesan en paralelo por **Workers** que 
 
 ---
 
-## Conceptos de concurrencia utilizados (explicación simple)
+## Conceptos de concurrencia utilizados
 - **Procesos/Workers concurrentes**: unidades que ejecutan en paralelo (hilos/procesos/actores).
 - **Pasaje de mensajes**: los procesos no comparten memoria para parámetros; se comunican mediante mensajes (canales/colas). Evita condiciones de carrera si el acceso está bien definido.
-- **Sincronización por barrera**: esperar a que todos los Workers envíen sus gradientes antes de actualizar (sincronización por iteración).
-- **Modelo asíncrono (opcional)**: los Workers envían gradientes y el Agregador actualiza cuando llegan (más rápido pero puede introducir estancamiento/diferencia de parámetros — *staleness*).
+- **Sincronización**: esperar a que todos los Workers envíen sus gradientes antes de actualizar (sincronización por iteración).
 
 ---
 
-## Conceptos de π-calculus usados (explicación no formal)
+## Conceptos de π-calculus usados 
 - **Nombres / canales**: en π-calculus los procesos hablan por nombres. Aquí un nombre ≈ un canal/cola (por ejemplo `chan_grad`, `chan_param`).
 - **Output/Input**: `send` y `recv`. Un proceso `P` puede enviar `send(chan, msg)` y otro recibir `recv(chan, var)`.
 - **Composición paralela**: `P | Q` significa `P` y `Q` corren en paralelo → equivalente a lanzar varios Workers.
@@ -74,8 +40,9 @@ Dividimos los datos en *trozos* que se procesan en paralelo por **Workers** que 
 > Mapeo práctico: piensa en cada nombre como una cola de mensajes (ej. `gradients`, `params`) y en los procesos como hilos que hacen `put/get`.
 
 ---
+<img width="1256" height="1606" alt="image" src="https://github.com/user-attachments/assets/6a649835-eda5-4f6e-b181-e6d0e1667db8" />
 
-## Flujo de datos y control (explicación paso a paso)
+## Flujo de datos y control 
 1. **Inicialización**: `w=0`, `b=0`. El Data Loader divide `X,y` en `K` trozos. Se crean `N` Workers.
 2. **Inicio de época**: el Coordinador publica el canal de parámetros `chan_param` y envía `w,b` a cada Worker.
 3. **Cómputo local** (en cada Worker): recibe su trozo y `w,b`; calcula predicciones locales `y_pred = w*x + b` y el `error = y_pred - y`. Calcula gradientes parciales:
@@ -91,7 +58,7 @@ Dividimos los datos en *trozos* que se procesan en paralelo por **Workers** que 
 
 ---
 
-## Modelado ligero en π-calculus (intuitivo, no formal)
+## Modelado basico en π-calculus
 - `Loader = !readChunk(c) . send(chan_task, c)`  — lee y envía chunks.
 - `Worker_i = recv(chan_param, (w,b)) . recv(chan_task, chunk) . computeGrad(chunk,w,b, g) . send(chan_grad, g) . Worker_i` (replicado por iteración)
 - `Aggregator = recv(chan_grad, g1) . recv(chan_grad, g2) . ... . update(w,b) . send(chan_param, (w,b)) . Aggregator`
@@ -99,46 +66,14 @@ Dividimos los datos en *trozos* que se procesan en paralelo por **Workers** que 
 
 ---
 
-## Diagramas UML (texto que puede transformarse a un diagrama visual)
 
-### Diagrama de Componentes (alto nivel)
-```
-[DataLoader] --> (TaskQueue)
-(Workers) --|> [Worker1]
-          --|> [Worker2]
-(TaskQueue) --> (Worker)
-(Worker) --> (GradQueue)
-(Aggregator) --> (ParamStore)
-(Coordinator) --> (Aggregator)
-(Coordinator) --> (Workers)
-```
-**Leyenda**: `-->` flujo de mensajes/colas. `TaskQueue` = canal de tareas; `GradQueue` = canal de gradientes; `ParamStore` = canal/almacén de parámetros.
-
-### Diagrama de Secuencia (una iteración simplificada)
-```
-Coordinator -> DataLoader: requestChunks()
-DataLoader -> TaskQueue: push(chunk_i)
-Coordinator -> Worker_i: send(params)
-Worker_i -> TaskQueue: pop() -> chunk
-Worker_i -> Aggregator: send(dw_i, db_i)
-Aggregator -> Aggregator: sum/avg
-Aggregator -> Coordinator: updated_params
-Coordinator -> Worker*: broadcast(updated_params)
-```
-
----
-
-## Estrategias de sincronización (ventajas/desventajas simples)
+## Estrategias de sincronización 
 1. **Sincronización por iteración (síncrona)**
-   - *Cómo*: esperar a N gradientes antes de actualizar.
-   - *Ventaja*: comportamiento similar al descenso de gradiente por batch completo (estable y determinista).
-   - *Desventaja*: lento si un Worker es lento (efecto *straggler*).
-2. **Asíncrono (hogwild / parameter server)**
-   - *Cómo*: actualizar parámetros cuando llegue cualquier gradiente.
-   - *Ventaja*: mayor throughput, menor espera.
-   - *Desventaja*: las actualizaciones usan parámetros con distinto estatus (staleness). Puede funcionar bien en problemas convexo simples.
-3. **Barrera parcial (bounded staleness)**
-   - *Cómo*: permite cierta diferencia (p.e. esperar K < N gradientes), balance entre velocidad y estabilidad.
+   - Esperar a N gradientes antes de actualizar.
+2. **Asíncrono**
+   - Actualizar parámetros cuando llegue cualquier gradiente.
+3. **Barrera parcial**
+   - Permite cierta diferencia (p.e. esperar K < N gradientes), balance entre velocidad y estabilidad.
 
 ---
 
@@ -146,35 +81,3 @@ Coordinator -> Worker*: broadcast(updated_params)
 - Si un Worker falla, el Coordinador puede reasignar su chunk a otro Worker.
 - Si el Agregador falla, usar replicación o guardar checkpoints periódicos de `w,b`.
 - Señal de terminación: enviar un mensaje `STOP` por `chan_param`.
-
----
-
-## Medidas de rendimiento y complejidad
-- **Coste computacional** por época: O(m) cálculo total (m = tamaño total dataset). Paralelizando en N Workers, idealmente tiempo ≈ O(m/N) + overhead de comunicación.
-- **Overhead de comunicación**: mensajes por iteración = N (un gradient por Worker) + N (recepción parámetros) -> importante diseñar tamaño de mensajes pequeño.
-
----
-
-## Mapping práctico (cómo implementarlo sin entrar en cosas avanzadas)
-- **Canales**: colas `Queue` de Python (`multiprocessing.Queue`) o canales en Go.
-- **Workers**: `Thread` o `Process` que ejecutan un bucle: recibir parámetros -> procesar su trozo -> enviar gradiente.
-- **Agregador**: hilo que hace `get()` N veces desde la cola de gradientes, actualiza, y `put()` en cola de parámetros.
-- **Coordinador**: puede ser el proceso principal que lanza Workers, inicializa parámetros y controla las épocas.
-
----
-
-## Ejemplo mapeado al código original (guía rápida)
-- La línea `y_pred = w * X + b` y cálculo de `dw, db` se mueve dentro del `Worker` pero usando solo su `X_chunk` e `y_chunk`.
-- En lugar de `for epoch in range(epochs):` con bucle único, cada época corresponde a: broadcast parámetros -> Workers calculan -> agregador actualiza -> siguiente época.
-
----
-
-## Recomendaciones finales (prácticas)
-- Empieza con **sincronización síncrona** y pocos Workers (p.e. 2–4) para validar lógica.
-- Mide tiempo por época y tamaño de mensajes; si la comunicación domina, considera aumentar el tamaño de chunk (menos mensajes).
-- Si enseñas esto o lo implementas, representarlo con las expresiones simples de π-calculus que incluí arriba ayuda a razonar sobre el flujo de mensajes.
-
----
-
-Si quieres, convierto este diseño en un diagrama UML gráfico (PNG/SVG) o en pseudocódigo para cada componente (DataLoader, Worker, Aggregator, Coordinator). Indícame si prefieres que use hilos (threading), procesos (multiprocessing) o canales estilo Go para el ejemplo de implementación.
-
