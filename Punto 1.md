@@ -36,8 +36,6 @@ Dividimos los datos en *trozos* que se procesan en paralelo por **Workers** que 
 - **Restricción (new n)**: crear un canal privado para una estructura particular (ej. un canal por iteración).
 - **Replicación (!P)**: modelo para crear muchos Workers idénticos.
 
-> Mapeo práctico: piensa en cada nombre como una cola de mensajes (ej. `gradients`, `params`) y en los procesos como hilos que hacen `put/get`.
-
 ---
 <img width="1256" height="1606" alt="image" src="https://github.com/user-attachments/assets/6a649835-eda5-4f6e-b181-e6d0e1667db8" />
 
