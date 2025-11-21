@@ -1,4 +1,5 @@
 # Comparación de Desempeño entre Python y Rust en Regresión Lineal
+<img width="1782" height="1059" alt="image" src="https://github.com/user-attachments/assets/78050b33-7794-4586-9562-74da7a00bcac" />
 
 ---
 
